@@ -7,6 +7,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.Executor;
+
 @Component
 public class AsyncClassTest {
 
@@ -14,15 +16,16 @@ public class AsyncClassTest {
     public ApplicationContext context;
 
     @Autowired
-    @Qualifier("applicationTaskExecutor")
-    private ThreadPoolTaskExecutor executor;
+    @Qualifier("threadPoolTaskExecutor2")
+    private Executor executor;
 
-    @Async
+    @Async("threadPoolTaskExecutor1")
     public void runAsyncTask() {
         System.out.println("runAsyncTask: " + Thread.currentThread().getName());
-        internalTask();
+//        executor.submit(this::internalTask);
+        executor.execute(this::internalTask);
     }
-
+    @Async("threadPoolTaskExecutor1")
     public void internalTask() {
         System.out.println("internalTask: " + Thread.currentThread().getName());
     }
