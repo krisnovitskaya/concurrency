@@ -23,6 +23,6 @@ public class SpringBootAsyncTest {
     }
 
     public static void main(String[] args) {
-        ConfigurableApplicationContext applicationContext = SpringApplication.run(SpringBootAsyncTest.class, args);
+        SpringApplication.run(SpringBootAsyncTest.class, args);
     }
 }
