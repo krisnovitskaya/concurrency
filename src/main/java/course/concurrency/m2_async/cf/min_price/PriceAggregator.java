@@ -1,10 +1,15 @@
 package course.concurrency.m2_async.cf.min_price;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class PriceAggregator {
 
+    private Executor executor = Executors.newCachedThreadPool();
     private PriceRetriever priceRetriever = new PriceRetriever();
 
     public void setPriceRetriever(PriceRetriever priceRetriever) {
@@ -18,7 +23,25 @@ public class PriceAggregator {
     }
 
     public double getMinPrice(long itemId) {
-        // place for your code
-        return 0;
+        CompletableFuture<Double>[] priceFuture = shopIds.stream().map(shopId -> prepareResult(itemId, shopId)).toArray(CompletableFuture[]::new);
+        CompletableFuture<Void> allOf = CompletableFuture.allOf(priceFuture);
+        allOf.join();
+        return countMin(priceFuture);
+    }
+
+    private CompletableFuture<Double> prepareResult(long itemId, long shopId){
+        return CompletableFuture.supplyAsync(() -> priceRetriever.getPrice(itemId, shopId), executor)
+                .orTimeout(2900, TimeUnit.MILLISECONDS)
+                .handle(((result, throwable) -> {
+                    if(throwable != null){
+                        return Double.NaN;
+                    }else {
+                        return result;
+                    }
+                }));
+    }
+
+    private Double countMin(CompletableFuture<Double>[] donePrices){
+        return Arrays.stream(donePrices).map(cf -> cf.join()).min(Double::compareTo).orElse(Double.NaN);
     }
 }
