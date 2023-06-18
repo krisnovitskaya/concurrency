@@ -31,17 +31,12 @@ public class PriceAggregator {
 
     private CompletableFuture<Double> prepareResult(long itemId, long shopId){
         return CompletableFuture.supplyAsync(() -> priceRetriever.getPrice(itemId, shopId), executor)
-                .orTimeout(2900, TimeUnit.MILLISECONDS)
-                .handle(((result, throwable) -> {
-                    if(throwable != null){
-                        return Double.NaN;
-                    }else {
-                        return result;
-                    }
-                }));
+                .completeOnTimeout(Double.NaN, 2900, TimeUnit.MILLISECONDS)
+                .exceptionally(throwable ->Double.NaN);
     }
 
-    private Double countMin(CompletableFuture<Double>[] donePrices){
+    private double countMin(CompletableFuture<Double>[] donePrices){
         return Arrays.stream(donePrices).map(cf -> cf.join()).min(Double::compareTo).orElse(Double.NaN);
+//        return Arrays.stream(donePrices).map(cf -> cf.join()).mapToDouble(f -> f).min().orElse(Double.NaN);
     }
 }
