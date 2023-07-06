@@ -1,9 +1,6 @@
 package course.concurrency.exams.auction;
 
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicMarkableReference;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.AtomicStampedReference;
 
 public class AuctionOptimistic implements Auction {
 
@@ -13,19 +10,21 @@ public class AuctionOptimistic implements Auction {
         this.notifier = notifier;
     }
 
-    private volatile Bid latestBid;
+
+    private AtomicReference<Bid> latestBid = new AtomicReference<>();
 
     public boolean propose(Bid bid) {
-        Bid temp = latestBid;
-        if (temp == null || bid.getPrice() > latestBid.getPrice()) {
-            notifier.sendOutdatedMessage(temp);
-            latestBid = bid;
-            return true;
+        Bid temp = latestBid.get();
+        if (temp == null || bid.getPrice() > temp.getPrice()) {
+            if (latestBid.compareAndSet(temp, bid)) {
+                notifier.sendOutdatedMessage(temp);
+                return true;
+            }
         }
         return false;
     }
 
     public Bid getLatestBid() {
-        return latestBid;
+        return latestBid.get();
     }
 }
