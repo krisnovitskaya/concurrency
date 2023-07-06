@@ -6,7 +6,6 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-@Disabled
 public class AuctionStoppableTests {
 
     private static final int TEST_COUNT = 10;
