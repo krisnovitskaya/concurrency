@@ -8,22 +8,33 @@ public class AuctionPessimistic implements Auction {
         this.notifier = notifier;
     }
 
-    private Bid latestBid;
+    private volatile Bid latestBid;
 
     public boolean propose(Bid bid) {
-        synchronized (lock) {
-            if (latestBid == null || bid.getPrice() > latestBid.getPrice()) {
-                notifier.sendOutdatedMessage(latestBid);
-                latestBid = bid;
-                return true;
+        try {
+            if(bid.getPrice() > latestBid.getPrice()){
+                synchronized (lock){
+                    if(bid.getPrice() > latestBid.getPrice()){
+                        notifier.sendOutdatedMessage(latestBid);
+                        latestBid = bid;
+                        return true;
+                    }
+                    return false;
+                }
+            } return false;
+        }catch (NullPointerException e){
+            synchronized (lock) {
+                if (latestBid == null || bid.getPrice() > latestBid.getPrice()) {
+                    notifier.sendOutdatedMessage(latestBid);
+                    latestBid = bid;
+                    return true;
+                }
+                return false;
             }
-            return false;
         }
     }
 
     public Bid getLatestBid() {
-        synchronized (lock) {
-            return latestBid;
-        }
+        return latestBid;
     }
 }
