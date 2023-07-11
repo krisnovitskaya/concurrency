@@ -13,55 +13,17 @@ public class AuctionOptimistic implements Auction {
 
     private AtomicReference<Bid> latestBid = new AtomicReference<>(new Bid(null, null, 0L));
 
-//    public boolean propose(Bid bid) {
-//        Bid temp = null;
-//        Bid resultCompare = null;
-//        try {
-//            while (true) {
-//                temp = latestBid.get();
-//                if (bid.getPrice() > temp.getPrice()) {
-//                    resultCompare = latestBid.compareAndExchange(temp, bid);
-//                    if (temp == resultCompare) {
-//                        notifier.sendOutdatedMessage(temp);
-//                        return true;
-//                    }
-//                } else {
-//                    return false;
-//                }
-//            }
-//        } catch (NullPointerException e){
-//            while (true) {
-//                temp = latestBid.get();
-//                if (temp == null || bid.getPrice() > temp.getPrice()) {
-//                    resultCompare = latestBid.compareAndExchange(temp, bid);
-//                    if (temp == resultCompare) {
-//                        notifier.sendOutdatedMessage(temp);
-//                        return true;
-//                    }
-//                } else {
-//                    return false;
-//                }
-//            }
-//        }
-//    }
-
-
     public boolean propose(Bid bid) {
         Bid temp = null;
-        Bid resultCompare = null;
-
         do{
             temp = latestBid.get();
-            if (bid.getPrice() > temp.getPrice()) {
-                resultCompare = latestBid.compareAndExchange(temp, bid);
-            } else {
+            if(bid.getPrice() <= temp.getPrice()) {
                 return false;
             }
-        }while (temp == resultCompare);
+        }while (latestBid.compareAndSet(temp, bid));
 
         notifier.sendOutdatedMessage(temp);
         return true;
-
     }
 
     public Bid getLatestBid() {
