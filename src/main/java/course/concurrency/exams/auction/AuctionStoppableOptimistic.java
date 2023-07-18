@@ -31,7 +31,9 @@ public class AuctionStoppableOptimistic implements AuctionStoppable {
 
     public Bid stopAuction() {
         do{
-            //trying stop
+            if (latestBid.isMarked()) {
+                return latestBid.getReference();
+            }
         } while (!latestBid.attemptMark(latestBid.getReference(), true));
         return latestBid.getReference();
     }
