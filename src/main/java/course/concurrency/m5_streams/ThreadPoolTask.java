@@ -20,7 +20,7 @@ public class ThreadPoolTask {
 
     static class ThreadPoolExecutor8DiscardCustom extends ThreadPoolExecutor {
         public ThreadPoolExecutor8DiscardCustom() {
-            super(8, 8, 0L, TimeUnit.MILLISECONDS, new DiscardQueue(), new ThreadPoolExecutor.DiscardPolicy());
+            super(8, 8, 0L, TimeUnit.MILLISECONDS, new SynchronousQueue<>(), new ThreadPoolExecutor.DiscardPolicy());
         }
 
         @Override
@@ -31,18 +31,6 @@ public class ThreadPoolTask {
         @Override
         public void setMaximumPoolSize(int maximumPoolSize) {
             //no reset
-        }
-
-        static class DiscardQueue<E> extends ArrayBlockingQueue<E> {
-
-            public DiscardQueue() {
-                super(1);
-            }
-
-            @Override
-            public boolean offer(E o) {
-                return false;
-            }
         }
     }
 
