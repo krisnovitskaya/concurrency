@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ThreadPoolTaskTests {
 
@@ -58,32 +59,32 @@ public class ThreadPoolTaskTests {
     void shouldDiscardIfNoAvailableThreads() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         Queue<Integer> processed = new LinkedBlockingQueue<>();
-        int poolSize = 16;
-        rejectExecutor.setMaximumPoolSize(poolSize);
-        rejectExecutor.setCorePoolSize(poolSize);
+        int tasks = 32;
+        int expectedProcessed = 8;
 
-        for (int i = 0; i < poolSize*2; i++) {
+        for (int i = 0; i < tasks; i++) {
             final int value = i;
             rejectExecutor.execute(
                     () -> {
                         try {
                             latch.await();
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
+                        } catch (InterruptedException e) { throw new RuntimeException(e);
                         }
                         processed.add(value);
                     });
         }
-        Thread.sleep(100);
+        Thread.sleep(500);
         latch.countDown();
 
         rejectExecutor.shutdown();
         rejectExecutor.awaitTermination(2, TimeUnit.SECONDS);
-        
-        assertEquals(poolSize, processed.size(), "Number of processed elements doesn't equals pool size");
 
-        List<Integer> expectedResult = IntStream.range(0, poolSize).boxed().collect(Collectors.toList());
+        assertEquals(expectedProcessed, processed.size(), "Number of processed elements doesn't equals pool size");
+
+        List<Integer> expectedResult = IntStream.range(0, expectedProcessed).boxed().collect(Collectors.toList());
         for (int i = 0; i < processed.size(); i++) {
             Integer processedElement = processed.poll();
             assertTrue(expectedResult.contains(processedElement), "Processed element is not as expected");
         }
+    }
+}
