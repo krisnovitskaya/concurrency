@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-@Disabled
 public class RestaurantServiceTests {
 
     private static final int TEST_COUNT = 10;

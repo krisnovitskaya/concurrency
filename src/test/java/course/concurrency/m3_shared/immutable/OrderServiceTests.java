@@ -1,6 +1,5 @@
 package course.concurrency.m3_shared.immutable;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +8,6 @@ import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-@Disabled
 public class OrderServiceTests {
 
     private OrderService service = new OrderService();
