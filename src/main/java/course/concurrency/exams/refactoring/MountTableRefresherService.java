@@ -75,7 +75,7 @@ public class MountTableRefresherService {
         }
     }
 
-    private MountTableRefresherThread getRefresher(String adminAddress){
+    protected MountTableRefresherThread getRefresher(String adminAddress){
         return new MountTableRefresherThread(
                 new Others.MountTableManager(adminAddress), adminAddress);
     }
