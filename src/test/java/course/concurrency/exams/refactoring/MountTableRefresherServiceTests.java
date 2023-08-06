@@ -43,7 +43,7 @@ public class MountTableRefresherServiceTests {
         MountTableRefresherService mockedService = Mockito.spy(service);
         List<String> addresses = List.of("123", "local6", "789", "local");
 
-        when(manager.refresh()).thenReturn(true);
+        when(manager.refresh()).thenReturn(true);// это не работает
 
         List<Others.RouterState> states = addresses.stream()
                 .map(a -> new Others.RouterState(a)).collect(toList());

@@ -2,7 +2,9 @@ package course.concurrency.exams.refactoring;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 
 public class MountTableRefresherService {
@@ -64,29 +66,18 @@ public class MountTableRefresherService {
      * Refresh mount table cache of this router as well as all other routers.
      */
     public void refresh()  {
-
-        List<Others.RouterState> cachedRecords = routerStore.getCachedRecords();
-        List<MountTableRefresherThread> refreshThreads = new ArrayList<>();
-        for (Others.RouterState routerState : cachedRecords) {
-            String adminAddress = routerState.getAdminAddress();
-            if (adminAddress == null || adminAddress.length() == 0) {
-                // this router has not enabled router admin.
-                continue;
-            }
-            if (isLocalAdmin(adminAddress)) {
-                /*
-                 * Local router's cache update does not require RPC call, so no need for
-                 * RouterClient
-                 */
-                refreshThreads.add(getLocalRefresher(adminAddress));
-            } else {
-                refreshThreads.add(new MountTableRefresherThread(
-                            new Others.MountTableManager(adminAddress), adminAddress));
-            }
-        }
+        List<MountTableRefresherThread> refreshThreads = routerStore.getCachedRecords().stream().map(Others.RouterState::getAdminAddress)
+                .filter(admAdr -> Objects.nonNull(admAdr) && !admAdr.isBlank())
+                .map(adr -> isLocalAdmin(adr) ? getLocalRefresher(adr) : getRefresher(adr))
+                .collect(Collectors.toList());
         if (!refreshThreads.isEmpty()) {
             invokeRefresh(refreshThreads);
         }
+    }
+
+    private MountTableRefresherThread getRefresher(String adminAddress){
+        return new MountTableRefresherThread(
+                new Others.MountTableManager(adminAddress), adminAddress);
     }
 
     protected MountTableRefresherThread getLocalRefresher(String adminAddress) {
@@ -104,6 +95,8 @@ public class MountTableRefresherService {
             refThread.setCountDownLatch(countDownLatch);
             refThread.start();
         }
+
+        CompletableFuture<Void> voidCompletableFuture = CompletableFuture.runAsync(refreshThreads.get(0));
         try {
             /*
              * Wait for all the thread to complete, await method returns false if
