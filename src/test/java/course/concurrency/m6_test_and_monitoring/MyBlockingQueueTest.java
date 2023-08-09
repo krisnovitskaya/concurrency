@@ -17,138 +17,116 @@ class MyBlockingQueueTest {
 
 
     @Test
-    @DisplayName("create test")
-    void testCreate(){
-        MyBlockingQueue<String> queue = new MyBlockingQueue<>(3);
-        assertNotNull(queue);
+    @DisplayName("check capacity when create")
+    void capacityTest(){
+        assertThrows(UnsupportedOperationException.class, () -> new MyBlockingQueue<>(0));
+        assertThrows(UnsupportedOperationException.class, () -> new MyBlockingQueue<>(-1));
+        assertDoesNotThrow(() -> new MyBlockingQueue<>(1));
     }
 
+    @Test
+    @DisplayName("check enqueue dequeue")
+    void enqueueDequeueTest(){
+        final int capacity = 5;
+        SimpleQueue<String> simpleQueue = new MyBlockingQueue<>(capacity);
+
+        final int expectedStartSize = 0;
+        assertEquals(expectedStartSize, simpleQueue.size());
+
+        simpleQueue.enqueue("val1");
+        assertEquals(1 , simpleQueue.size());
+        simpleQueue.enqueue("val2");
+        assertEquals(2 , simpleQueue.size());
+
+
+        simpleQueue.dequeue();
+        assertEquals(1 , simpleQueue.size());
+        simpleQueue.dequeue();
+        assertEquals(expectedStartSize , simpleQueue.size());
+
+    }
 
     @Test
-    @DisplayName("add test")
-    void testAdd() throws InterruptedException {
-        final int expectedSize = 3;
+    @DisplayName("check fifo")
+    void fifoTest(){
+        List<String> enqueueData = List.of("a", "b", "c",  "d", "f", "g");
+        final int testSize = enqueueData.size();
+        List<String> dequeueData = new ArrayList<>();
+        MyBlockingQueue<String> simpleQueue = new MyBlockingQueue<>(testSize);
 
-        MyBlockingQueue<String> queue = new MyBlockingQueue<>(expectedSize);
-
-        CountDownLatch latch = new CountDownLatch(expectedSize);
-
-        for (int i = 0; i < expectedSize; i++) {
-            Thread thread = new Thread(() -> {
-                queue.enqueue(Thread.currentThread().getName());
-                latch.countDown();
-            });
-            thread.start();
+        for (String val : enqueueData) {
+            simpleQueue.enqueue(val);
         }
 
-        latch.await();
+        for (int i = 0; i < testSize; i++) {
+            dequeueData.add(simpleQueue.dequeue());
+        }
 
-        //check fill max
-        assertEquals(expectedSize, queue.size());
+        assertEquals(enqueueData, dequeueData);
+    }
 
-        //add more
-        Thread more = new Thread(() -> {
-            queue.enqueue(Thread.currentThread().getName());
+    @RepeatedTest(10)
+    @DisplayName("check thread is blocking when get from empty")
+    void dequeuBlockingTest() throws InterruptedException {
+
+        MyBlockingQueue<String> myBlockingQueue = new MyBlockingQueue<>(1);
+
+        Thread dequeueThread = new Thread(() -> {
+           myBlockingQueue.dequeue();
         });
-        more.start();
-
-        Thread.sleep(100);
-        //check fill more no add new
-        assertEquals(expectedSize, queue.size());
-
-        //check moreThread alive
-        assertEquals(true, more.isAlive());
-
-        String value = queue.dequeue();
+        dequeueThread.setDaemon(true);
+        dequeueThread.start();
 
         Thread.sleep(100);
 
-        //check fill more add new
-        assertEquals(expectedSize, queue.size());
-
-        //check moreThread dead
-        assertEquals(false, more.isAlive());
+        assertEquals("WAITING", dequeueThread.getState().name());
     }
 
-    @Test
-    @DisplayName("get test")
-    void getTest() throws InterruptedException {
-        final int expectedSize = 3;
-        MyBlockingQueue<String> queue = new MyBlockingQueue<>(expectedSize);
+    @RepeatedTest(10)
+    @DisplayName("check thread is blocking when add to full")
+    void enqueueBlockingTest() throws InterruptedException {
 
-        List<String> resultList = new CopyOnWriteArrayList<>();
-        List<Thread> threadGetList = new ArrayList<>();
+        final int capacity = 1;
+        MyBlockingQueue<String> myBlockingQueue = new MyBlockingQueue<>(capacity);
 
-        CyclicBarrier barrier = new CyclicBarrier(expectedSize * 2);
-        for (int i = 0; i < expectedSize + 1; i++) {
-            threadGetList.add(new Thread(() -> {
-                resultList.add(queue.dequeue());
-                try {
-                    barrier.await();
-                } catch (InterruptedException | BrokenBarrierException e) {
-                    throw new RuntimeException(e);
-                }
-            }));
-        }
+        myBlockingQueue.enqueue("val");
+        assertEquals(capacity, myBlockingQueue.size());
 
-        threadGetList.forEach(Thread::start);
+        Thread enqueueThread = new Thread(() -> {
+            myBlockingQueue.enqueue("val2");
+        });
+        enqueueThread.setDaemon(true);
+        enqueueThread.start();
 
+        Thread.sleep(100);
 
-
-        for (int i = 0; i < expectedSize; i++) {
-            Thread thread = new Thread(() -> {
-                queue.enqueue(Thread.currentThread().getName());
-                try {
-                    barrier.await();
-                } catch (InterruptedException | BrokenBarrierException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            thread.start();
-        }
-
-        while(!(barrier.getParties() == expectedSize *2)){
-            //wait
-        }
-
-        long deadCount = threadGetList.stream().filter(t -> !t.isAlive()).count();
-
-        //
-        assertEquals(resultList.size(), deadCount);
+        assertEquals("WAITING", enqueueThread.getState().name());
     }
 
 
     @RepeatedTest(50)
     @DisplayName("full filling and removing")
-    void fullFillRemoveTest() throws InterruptedException {
+    void fullFillRemoveTest() {
         final int expectedSize = 5;
         final int range = 50;
 
         Set<String> dataSet = IntStream.range(1, range + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
         Set<String> resultSet = new ConcurrentSkipListSet<>();
 
-        CountDownLatch latch = new CountDownLatch(range*2);
+        ExecutorService service = Executors.newCachedThreadPool();
 
         MyBlockingQueue<String> queue = new MyBlockingQueue<>(expectedSize);
 
-        for (String s : dataSet) {
-            Thread thread = new Thread(() -> {
-                queue.enqueue(s);
-                latch.countDown();
-            });
-            thread.start();
+
+        for (String data : dataSet) {
+            service.execute(() -> resultSet.add(queue.dequeue()));
+            service.execute(() -> queue.enqueue(data));
         }
 
-
-        for (int i = 0; i < dataSet.size(); i++) {
-            Thread thread = new Thread(() -> {
-                resultSet.add(queue.dequeue());
-                latch.countDown();
-            });
-            thread.start();
+        service.shutdown();
+        assertTrue(service.isShutdown());
+        while (!service.isTerminated()){
         }
-
-        latch.await();
 
         //queue empty
         assertEquals(0, queue.size());
@@ -159,6 +137,7 @@ class MyBlockingQueueTest {
         dataSet.removeAll(resultSet);
         //check data
         assertEquals(0, dataSet.size());
-
     }
 }
+
+

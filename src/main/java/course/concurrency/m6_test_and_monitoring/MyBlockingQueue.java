@@ -18,6 +18,7 @@ public class MyBlockingQueue<T> implements SimpleQueue<T>{
     private final Condition enqueueCond;
     private final Condition dequeueCond;
     public MyBlockingQueue(int capacity) {
+        if(capacity <= 0) throw new UnsupportedOperationException("queue capacity must be > 0");
         this.capacity = capacity;
         this.size = 0;
         this.headIndex = START_HEAD_INDEX;
