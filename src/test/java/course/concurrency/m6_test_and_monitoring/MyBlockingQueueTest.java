@@ -65,9 +65,9 @@ class MyBlockingQueueTest {
         assertEquals(enqueueData, dequeueData);
     }
 
-    @RepeatedTest(10)
+    @Test
     @DisplayName("check thread is blocking when get from empty")
-    void dequeuBlockingTest() throws InterruptedException {
+    void dequeueBlockingTest() throws InterruptedException {
 
         MyBlockingQueue<String> myBlockingQueue = new MyBlockingQueue<>(1);
 
@@ -80,20 +80,32 @@ class MyBlockingQueueTest {
         Thread.sleep(100);
 
         assertEquals("WAITING", dequeueThread.getState().name());
+
+
+        //when add and wait
+        myBlockingQueue.enqueue("any");
+
+        Thread.sleep(100);
+
+        //then
+        assertEquals("TERMINATED", dequeueThread.getState().name());
+
+        assertEquals(0, myBlockingQueue.size());
     }
 
-    @RepeatedTest(10)
+    @Test
     @DisplayName("check thread is blocking when add to full")
     void enqueueBlockingTest() throws InterruptedException {
-
+        String val1 = "val1";
+        String val2 = "val2";
         final int capacity = 1;
         MyBlockingQueue<String> myBlockingQueue = new MyBlockingQueue<>(capacity);
 
-        myBlockingQueue.enqueue("val");
+        myBlockingQueue.enqueue(val1);
         assertEquals(capacity, myBlockingQueue.size());
 
         Thread enqueueThread = new Thread(() -> {
-            myBlockingQueue.enqueue("val2");
+            myBlockingQueue.enqueue(val2);
         });
         enqueueThread.setDaemon(true);
         enqueueThread.start();
@@ -101,32 +113,48 @@ class MyBlockingQueueTest {
         Thread.sleep(100);
 
         assertEquals("WAITING", enqueueThread.getState().name());
+
+        assertEquals(capacity, myBlockingQueue.size());
+
+        //when dequeue 1
+        myBlockingQueue.dequeue();
+        //then wait and check enqueue2 done
+        Thread.sleep(100);
+
+        assertEquals(capacity, myBlockingQueue.size());
+        assertEquals("TERMINATED", enqueueThread.getState().name());
     }
 
 
     @RepeatedTest(50)
     @DisplayName("full filling and removing")
-    void fullFillRemoveTest() {
+    void fullFillRemoveTest() throws InterruptedException {
         final int expectedSize = 5;
         final int range = 50;
 
         Set<String> dataSet = IntStream.range(1, range + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
         Set<String> resultSet = new ConcurrentSkipListSet<>();
 
-        ExecutorService service = Executors.newCachedThreadPool();
+        ExecutorService serviceAdd = Executors.newSingleThreadExecutor();
+        ExecutorService serviceGet = Executors.newSingleThreadExecutor();
 
         MyBlockingQueue<String> queue = new MyBlockingQueue<>(expectedSize);
 
 
-        for (String data : dataSet) {
-            service.execute(() -> resultSet.add(queue.dequeue()));
-            service.execute(() -> queue.enqueue(data));
-        }
+        serviceAdd.execute(() -> {
+            for (String data : dataSet) {
+                queue.enqueue(data);
+            }
+        });
 
-        service.shutdown();
-        assertTrue(service.isShutdown());
-        while (!service.isTerminated()){
-        }
+        serviceGet.execute(() -> {
+            for (String data : dataSet) {
+                resultSet.add(queue.dequeue());
+            }
+        });
+
+
+        serviceGet.awaitTermination(100, TimeUnit.MILLISECONDS);
 
         //queue empty
         assertEquals(0, queue.size());
