@@ -134,27 +134,24 @@ class MyBlockingQueueTest {
 
         Set<String> dataSet = IntStream.range(1, range + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
         Set<String> resultSet = new ConcurrentSkipListSet<>();
-
-        ExecutorService serviceAdd = Executors.newSingleThreadExecutor();
-        ExecutorService serviceGet = Executors.newSingleThreadExecutor();
-
+        ExecutorService service = Executors.newFixedThreadPool(2);
         MyBlockingQueue<String> queue = new MyBlockingQueue<>(expectedSize);
 
-
-        serviceAdd.execute(() -> {
+        service.execute(() -> {
             for (String data : dataSet) {
                 queue.enqueue(data);
             }
         });
 
-        serviceGet.execute(() -> {
+        service.execute(() -> {
             for (String data : dataSet) {
                 resultSet.add(queue.dequeue());
             }
         });
 
 
-        serviceGet.awaitTermination(100, TimeUnit.MILLISECONDS);
+        service.awaitTermination(100, TimeUnit.MILLISECONDS);
+
 
         //queue empty
         assertEquals(0, queue.size());
