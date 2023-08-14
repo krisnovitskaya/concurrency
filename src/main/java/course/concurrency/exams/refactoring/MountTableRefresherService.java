@@ -90,24 +90,16 @@ public class MountTableRefresherService {
 
     private void invokeRefresh(List<MountTableRefresher> refreshThreads) {
 
-        CompletableFuture<Boolean>[] results = refreshThreads.stream().map(rt ->
-                CompletableFuture.runAsync(rt)
-                        .orTimeout(cacheUpdateTimeout, TimeUnit.MILLISECONDS)
-                        .handle((result, ex) -> {
-                            if (ex != null) {
-                                if(ex instanceof TimeoutException){
-                                    log("refresher with address=" + rt.getAdminAddress() + " exceed timeout");
-                                }else {
-                                    log("refresher with address=" + rt.getAdminAddress() + "; throw ex: message=" + ex.getLocalizedMessage());
-                                }
-                                return false;
-                            }
-                            return rt.isSuccess();
-                        })
-        ).toArray(CompletableFuture[]::new);
-
-        CompletableFuture<Void> allOf = CompletableFuture.allOf(results);
-        allOf.join();
+        CompletableFuture<Void> allOf = CompletableFuture.allOf(refreshThreads.stream().map(CompletableFuture::runAsync).toArray(CompletableFuture[]::new));
+        try {
+            allOf.get(cacheUpdateTimeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e){
+            log("Mount table cache refresher was interrupted.");
+        }catch (ExecutionException e) {
+            e.getCause().printStackTrace();
+        } catch (TimeoutException e) {
+            log("Not all router admins updated their cache");
+        }
         logResult(refreshThreads);
     }
 

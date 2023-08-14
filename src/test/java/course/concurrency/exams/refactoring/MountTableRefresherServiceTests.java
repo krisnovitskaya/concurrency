@@ -153,7 +153,6 @@ public class MountTableRefresherServiceTests {
         mockedService.refresh();
 
         // then
-        verify(mockedService).log("refresher with address="+ admAddress + "; throw ex: message=java.lang.RuntimeException: test exception");
         verify(mockedService).log("Mount table entries cache refresh successCount=0,failureCount=1");
     }
 
@@ -181,7 +180,7 @@ public class MountTableRefresherServiceTests {
         mockedService.refresh();
 
         // then
-        verify(mockedService).log("refresher with address=" + admAddress + " exceed timeout");
+        verify(mockedService).log("Not all router admins updated their cache");
         verify(mockedService).log("Mount table entries cache refresh successCount=0,failureCount=1");
     }
 
