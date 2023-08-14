@@ -130,27 +130,39 @@ class MyBlockingQueueTest {
     @DisplayName("full filling and removing")
     void fullFillRemoveTest() throws InterruptedException {
         final int expectedSize = 5;
-        final int range = 50;
+        final int range = 2000;
 
         Set<String> dataSet = IntStream.range(1, range + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
         Set<String> resultSet = new ConcurrentSkipListSet<>();
-        ExecutorService service = Executors.newFixedThreadPool(2);
+        ExecutorService service = Executors.newCachedThreadPool();
         MyBlockingQueue<String> queue = new MyBlockingQueue<>(expectedSize);
 
-        service.execute(() -> {
-            for (String data : dataSet) {
-                queue.enqueue(data);
-            }
-        });
+        CountDownLatch latch = new CountDownLatch(1);
 
-        service.execute(() -> {
-            for (String data : dataSet) {
+        for (String data : dataSet) {
+            service.execute(() -> {
+                try {
+                    latch.await();
+                } catch (InterruptedException e) {
+                    //do nothing
+                }
                 resultSet.add(queue.dequeue());
-            }
-        });
+            });
 
+            service.execute(() -> {
+                try {
+                    latch.await();
+                } catch (InterruptedException e) {
+                    //do nothing
+                }
+                queue.enqueue(data);
+            });
+        }
 
-        service.awaitTermination(100, TimeUnit.MILLISECONDS);
+        latch.countDown();
+
+        service.shutdown();
+        service.awaitTermination(1000, TimeUnit.MILLISECONDS);
 
 
         //queue empty
