@@ -5,6 +5,7 @@ import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -130,37 +131,61 @@ class MyBlockingQueueTest {
     @DisplayName("full filling and removing")
     void fullFillRemoveTest() throws InterruptedException {
         final int expectedSize = 5;
-        final int range = 2000;
 
-        Set<String> dataSet = IntStream.range(1, range + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
+        final int range = 1000;
+
+        Set<String> dataSet1 = IntStream.range(1, range + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
+        Set<String> dataSet2 = IntStream.range(range + 1 , range * 2 + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
+        Set<String> dataSet3 = IntStream.range(range * 2 + 1 , range * 3 + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
+        Set<String> dataSet4 = IntStream.range(range * 3 + 1 , range * 4 + 1).boxed().map(integer -> "value".concat(integer.toString())).collect(Collectors.toSet());
+
+        Set<String> dataAll = new HashSet<>();
+        dataAll.addAll(dataSet1);
+        dataAll.addAll(dataSet2);
+        dataAll.addAll(dataSet3);
+        dataAll.addAll(dataSet4);
+        assertEquals(range * 4, dataAll.size());
+
         Set<String> resultSet = new ConcurrentSkipListSet<>();
-        ExecutorService service = Executors.newCachedThreadPool();
+        ExecutorService service = Executors.newFixedThreadPool(8);
         MyBlockingQueue<String> queue = new MyBlockingQueue<>(expectedSize);
 
         CountDownLatch latch = new CountDownLatch(1);
 
-        for (String data : dataSet) {
-            service.execute(() -> {
-                try {
-                    latch.await();
-                } catch (InterruptedException e) {
-                    //do nothing
-                }
-                resultSet.add(queue.dequeue());
-            });
-
-            service.execute(() -> {
-                try {
-                    latch.await();
-                } catch (InterruptedException e) {
-                    //do nothing
-                }
-                queue.enqueue(data);
-            });
+        //run 4 getter
+        for (int j = 0; j < 4; j++) {
+            service.execute(() -> { try {latch.await();} catch (InterruptedException e) {/*do nothing*/}
+                            for (int i = 0; i < range; i++) {
+                                resultSet.add(queue.dequeue());
+                            }
+                        });
         }
 
-        latch.countDown();
+        //run4 adder
+        service.execute(() -> { try {latch.await();} catch (InterruptedException e) {/*do nothing*/}
+            for (String data1 : dataSet1) {
+                queue.enqueue(data1);
+            }
+        });
+        service.execute(() -> { try {latch.await();} catch (InterruptedException e) {/*do nothing*/}
+            for (String data2 : dataSet2) {
+                queue.enqueue(data2);
+            }
+        });
+        service.execute(() -> { try {latch.await();} catch (InterruptedException e) {/*do nothing*/}
+            for (String data3 : dataSet3) {
+                queue.enqueue(data3);
+            }
+        });
+        service.execute(() -> { try {latch.await();} catch (InterruptedException e) {/*do nothing*/}
+            for (String data4 : dataSet4) {
+                queue.enqueue(data4);
+            }
+        });
 
+
+
+        latch.countDown();
         service.shutdown();
         service.awaitTermination(1000, TimeUnit.MILLISECONDS);
 
@@ -169,11 +194,11 @@ class MyBlockingQueueTest {
         assertEquals(0, queue.size());
 
         //assert result count
-        assertEquals(range, resultSet.size());
+        assertEquals(range * 4, resultSet.size());
 
-        dataSet.removeAll(resultSet);
+        dataAll.removeAll(resultSet);
         //check data
-        assertEquals(0, dataSet.size());
+        assertEquals(0, dataAll.size());
     }
 }
 
