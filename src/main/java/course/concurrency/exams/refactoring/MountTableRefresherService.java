@@ -89,17 +89,21 @@ public class MountTableRefresherService {
     }
 
     private void invokeRefresh(List<MountTableRefresher> refreshThreads) {
+        CompletableFuture<Void> allOf = CompletableFuture.allOf(refreshThreads.stream().map(CompletableFuture::runAsync).toArray(CompletableFuture[]::new))
+                .orTimeout(cacheUpdateTimeout, TimeUnit.MILLISECONDS)
+                .handle((unused, throwable) -> {
+                    if(throwable != null){
+                        if(throwable instanceof TimeoutException){
+                            log("Not all router admins updated their cache");
+                        }else {
+                            throwable.getCause().printStackTrace();
+                        }
+                    }
+                    return unused;
+                });
 
-        CompletableFuture<Void> allOf = CompletableFuture.allOf(refreshThreads.stream().map(CompletableFuture::runAsync).toArray(CompletableFuture[]::new));
-        try {
-            allOf.get(cacheUpdateTimeout, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e){
-            log("Mount table cache refresher was interrupted.");
-        }catch (ExecutionException e) {
-            e.getCause().printStackTrace();
-        } catch (TimeoutException e) {
-            log("Not all router admins updated their cache");
-        }
+            allOf.join();
+
         logResult(refreshThreads);
     }
 
